@@ -41,11 +41,6 @@ provider:
             - xray:PutTraceSegments
           Resource: "*"
 
-custom:
-  webpack:
-    webpackConfig: ./webpack.config.js
-    includeModules: true
-
 functions:
 
   Auth:
@@ -65,7 +60,7 @@ functions:
       - Effect: Allow
         Action:
           - dynamodb:Query
-        Resource: !GetAtt TODOS_TABLE.Arn
+        Resource: !GetAtt TodosTable.Arn
       - Effect: Allow
         Action:
           - dynamodb:GetItem
