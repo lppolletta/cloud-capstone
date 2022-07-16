@@ -25,7 +25,7 @@ provider:
   environment:
     TODOS_TABLE: Todos-${self:provider.stage}
     TODOS_CREATED_AT_INDEX: CreatedAtIndex
-    ATTACHMENT_S3_BUCKET: serverless-lp-c4-todo-images-${self:provider.stage}
+    ATTACHMENT_S3_BUCKET: serverless-lp9-c4-todo-images-${self:provider.stage}
     SIGNED_URL_EXPIRATION: 300
 
   logs:
@@ -63,6 +63,8 @@ functions:
         Resource: !GetAtt TodosTable.Arn
       - Effect: Allow
         Action:
+          - dynamodb:Query
+          - dynamodb:Scan
           - dynamodb:GetItem
         Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}/index/${self:provider.environment.TODOS_CREATED_AT_INDEX}
 
@@ -144,6 +146,8 @@ functions:
         Resource: arn:aws:s3:::${self:provider.environment.ATTACHMENT_S3_BUCKET}/*
       - Effect: Allow
         Action:
+          - dynamodb:GetItem
+          - dynamodb:PutItem
           - dynamodb:UpdateItem
         Resource: !GetAtt TodosTable.Arn
 
