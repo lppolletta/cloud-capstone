@@ -9,7 +9,6 @@ import * as uuid from 'uuid'
 //import * as createError from 'http-errors'
 
 // TODO: Implement businessLogic
-const bucketName = process.env.ATTACHMENT_S3_BUCKET;
 
 const logger = createLogger('todos')
 
@@ -23,8 +22,7 @@ export async function createTodo(user: string, createTodoRequest: CreateTodoRequ
         createdAt: new Date().toISOString(),
         name: createTodoRequest.name,
         dueDate: createTodoRequest.dueDate,
-        done: false,
-        attachmentUrl: `https://${bucketName}.s3.amazonaws.com/${todoId}`
+        done: false
     })
 }
 
@@ -38,11 +36,10 @@ export async function deleteTodo(userId: string, todoId: string) {
     return await todosAccess.deleteTodo(userId, todoId);
 }
 
-export async function createAttachmentPresignedUrl(userId: string, todoId: string) {
-    logger.info(`[Service] Start create attachment signed URL for userId: ${userId} & todoId ${todoId}`)
-    return await todosAccess.createAttachmentPresignedUrl(userId, todoId)
-}
-
 export async function updateTodo(userId: string, todoId: string, todoUpdate: UpdateTodoRequest): Promise<TodoUpdate> {
     return await todosAccess.updateTodo(userId, todoId, todoUpdate);
+}
+
+export async function generateUploadUrl(userId: string, todoId: string):  Promise < String >{
+    return todosAccess.generateUploadUrl(userId, todoId)
 }

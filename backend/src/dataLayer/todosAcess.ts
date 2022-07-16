@@ -1,13 +1,16 @@
 import * as AWS from 'aws-sdk'
-const AWSXRay = require('aws-xray-sdk')
 //import * as AWSXRay from 'aws-xray-sdk'
 import { DocumentClient } from 'aws-sdk/clients/dynamodb'
 import { createLogger } from '../utils/logger'
 import { TodoItem } from '../models/TodoItem'
-import { TodoUpdate } from '../models/TodoUpdate';
+import { TodoUpdate } from '../models/TodoUpdate'
 
-
+const AWSXRay = require('aws-xray-sdk')
 const XAWS = AWSXRay.captureAWS(AWS)
+
+
+const s3 = new XAWS.S3({signatureVersion: 'v4'})
+const urlExpiration = process.env.SIGNED_URL_EXPIRATION
 
 const logger = createLogger('TodosAccess')
 
@@ -18,9 +21,7 @@ export class TodosAccess {
         private readonly docClient: DocumentClient = new XAWS.DynamoDB.DocumentClient(),
         private readonly todosTable = process.env.TODOS_TABLE,
         private readonly todosIndex = process.env.TODOS_CREATED_AT_INDEX,
-        private readonly s3 = new XAWS.S3({ signatureVersion: 'v4' }),
-        private readonly bucketName = process.env.ATTACHMENTS_S3_BUCKET,
-        private readonly urlExpiration = process.env.SIGNED_URL_EXPIRATION
+        private readonly bucketName = process.env.ATTACHMENTS_S3_BUCKET
     ) {
     }
 
@@ -88,33 +89,37 @@ export class TodosAccess {
         }).promise()
     }
 
-    getSignedURL(todoId: string) {
-        const uploadUrl = {
-            Bucket: this.bucketName,
-            Key: todoId,
-            Expires: Number(this.urlExpiration)
-        }
-        return this.s3.getSignedUrl('putObject', uploadUrl)
-    }
-
     /** Create attachment signed Url */
-    async createAttachmentPresignedUrl(userId: string, todoId: string): Promise<any> {
-        logger.info(`[Repo] Get Signed URL from S3 bucket by ${userId} & ${todoId}`)
-        const signedUrl = this.getSignedURL(todoId)
-        logger.info(`[Repo] SighedURL from s3 bucket ${signedUrl}`)
-        logger.info('[Repo] Create signed Url for userId ', userId, ' todoId ', todoId)
-        await this.docClient.update({
+    async generateUploadUrl(userId: string, todoId: string): Promise<String> {
+        const url = getUploadUrl(todoId, this.bucketName)
+
+        const attachmentUrl: string = 'https://' + this.bucketName + '.s3.amazonaws.com/' + todoId
+
+        const options = {
             TableName: this.todosTable,
             Key: {
-                "userId": userId,
-                "todoId": todoId
+                userId: userId,
+                todoId: todoId
             },
-            UpdateExpression: "set attachmentUrl=:url",
+            UpdateExpression: "set attachmentUrl = :r",
             ExpressionAttributeValues: {
-                ":url": signedUrl.split("?")[0]
-            }
-        }).promise()
-        logger.info('[Repo] Completed')
-        return signedUrl
+                ":r": attachmentUrl
+            },
+            ReturnValues: "UPDATED_NEW"
+        };
+
+        await this.docClient.update(options).promise()
+        logger.info("Presigned url generated successfully ", url)
+
+        return url;
     }
+
+}
+
+function getUploadUrl(todoId: string, bucketName: string): string {
+    return s3.getSignedUrl('putObject', {
+        Bucket: bucketName,
+        Key: todoId,
+        Expires: parseInt(urlExpiration)
+    })
 }
