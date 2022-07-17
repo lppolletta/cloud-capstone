@@ -21,7 +21,7 @@ export class TodosAccess {
         private readonly docClient: DocumentClient = new XAWS.DynamoDB.DocumentClient(),
         private readonly todosTable = process.env.TODOS_TABLE,
         private readonly todosIndex = process.env.TODOS_CREATED_AT_INDEX,
-        private readonly bucketName = process.env.ATTACHMENTS_S3_BUCKET
+        private readonly bucketName = process.env.ATTACHMENT_S3_BUCKET
     ) {
     }
 
@@ -51,30 +51,28 @@ export class TodosAccess {
     }
 
     async updateTodo(userId: string, todoId: string, todoUpdate: TodoUpdate): Promise<TodoUpdate> {
-
-        logger.info(`Updating todo item ${todoId} in ${this.todosTable}`)
-
-        const updatedItem = await this.docClient.update({
+        var params = {
             TableName: this.todosTable,
             Key: {
-                todoId: todoId,
-                userId: userId
+                userId: userId,
+                todoId: todoId
             },
-            UpdateExpression: 'set #name = :name, #dueDate = :dueDate, #done = :done',
-            ConditionExpression: 'todoId = :todoId',
-            ExpressionAttributeNames: {
-                '#name': 'name',
-                '#dueDate': 'dueDate',
-                '#done': 'done'
-            },
+            UpdateExpression: "set #n = :r, dueDate=:p, done=:a",
             ExpressionAttributeValues: {
-                ':name': todoUpdate.name,
-                ':dueDate': todoUpdate.dueDate,
-                ':done': todoUpdate.done
-            }
-        }).promise()
+                ":r": todoUpdate.name,
+                ":p": todoUpdate.dueDate,
+                ":a": todoUpdate.done
+            },
+            ExpressionAttributeNames: {
+                "#n": "name"
+            },
+            ReturnValues: "UPDATED_NEW"
+        };
 
-        return updatedItem.Attributes as TodoUpdate
+        await this.docClient.update(params).promise()
+        logger.info("Update was successful")
+        return todoUpdate
+
     }
 
     async deleteTodo(userId: string, todoId: string): Promise<void> {

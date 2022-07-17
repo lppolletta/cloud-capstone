@@ -14,7 +14,8 @@ export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEven
   const userId = getUserId(event);
   // TODO: Return a presigned URL to upload a file for a TODO item with the provided id
 
-  let uploadUrl = await generateUploadUrl(userId, todoId)
+  const URL  = await generateUploadUrl(userId, todoId)
+
   return {
     statusCode: 200,
     headers: {
@@ -22,7 +23,7 @@ export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEven
       'Access-Control-Allow-Credentials': true
     },
     body: JSON.stringify({
-      item: uploadUrl
+      uploadUrl: URL 
     })
   }
 
