@@ -1,20 +1,20 @@
 import 'source-map-support/register'
 
-import { APIGatewayProxyEvent, APIGatewayProxyResult, APIGatewayProxyHandler  } from 'aws-lambda'
+import { APIGatewayProxyEvent, APIGatewayProxyResult, APIGatewayProxyHandler } from 'aws-lambda'
 import { createLogger } from '../../utils/logger'
 
-import { generateUploadUrl } from '../../businessLogic/todos'
+import { generateUploadUrl } from '../../businessLogic/messages'
 import { getUserId } from '../utils'
 
-const logger = createLogger('Todo')
+const logger = createLogger('Message')
 export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   logger.info(" Processing event for generating signed url", event)
 
-  const todoId = event.pathParameters.todoId
+  const messageId = event.pathParameters.messageId
   const userId = getUserId(event);
   // TODO: Return a presigned URL to upload a file for a TODO item with the provided id
 
-  const URL  = await generateUploadUrl(userId, todoId)
+  const URL = await generateUploadUrl(userId, messageId)
 
   return {
     statusCode: 200,
@@ -23,7 +23,7 @@ export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEven
       'Access-Control-Allow-Credentials': true
     },
     body: JSON.stringify({
-      uploadUrl: URL 
+      uploadUrl: URL
     })
   }
 

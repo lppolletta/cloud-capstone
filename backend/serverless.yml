@@ -1,7 +1,7 @@
 # TODO: Change the name of the org 
 org: lppolletta
-app: serverless-todo-app
-service: serverless-todo-app
+app: serverless-message-app
+service: serverless-message-app
 
 plugins:
   - serverless-webpack
@@ -21,11 +21,11 @@ provider:
     apiGateway: true
 
   # Use these variables in the functions and resouorces section below. For example, 
-  # ${self:provider.environment.ATTACHMENT_S3_BUCKET}
+  # ${self:provider.environment.MESSAGES_S3_BUCKET}
   environment:
-    TODOS_TABLE: Todos-${self:provider.stage}
-    TODOS_CREATED_AT_INDEX: CreatedAtIndex
-    ATTACHMENT_S3_BUCKET: serverless-lpp-c4-todo-images-${self:provider.stage}
+    MESSAGES_TABLE: Messages-${self:provider.stage}
+    MESSAGES_CREATED_AT_INDEX: CreatedAtIndex
+    MESSAGES_S3_BUCKET: serverless-lpp-cap-messages-${self:provider.stage}
     SIGNED_URL_EXPIRATION: 300
 
   logs:
@@ -48,85 +48,85 @@ functions:
 
   # TODO: Configure this function - 
   # Provide iamRoleStatements property for performing Actions on DynamoDB
-  GetTodos:
-    handler: src/lambda/http/getTodos.handler
+  GetMessages:
+    handler: src/lambda/http/getMessages.handler
     events:
       - http:
           method: get
-          path: todos
+          path: messages
           cors: true
           authorizer: Auth
     iamRoleStatements:
       - Effect: Allow
         Action:
           - dynamodb:Query
-        Resource: !GetAtt TodosTable.Arn
+        Resource: !GetAtt MessagesTable.Arn
       - Effect: Allow
         Action:
           - dynamodb:Query
           - dynamodb:Scan
           - dynamodb:GetItem
-        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}/index/${self:provider.environment.TODOS_CREATED_AT_INDEX}
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.MESSAGES_TABLE}/index/${self:provider.environment.MESSAGES_CREATED_AT_INDEX}
 
   # TODO: Configure this function - 
   # Provide iamRoleStatements property. Decide the Actions and AWS Resource. 
   # To refer to an AWS resource defined in the "Resources" section, you can use "Resource: !GetAtt <resource-name>.Arn"
   # To validate incoming HTTP requests, we have provided the request schemas in function definition below. 
-  CreateTodo:
-    handler: src/lambda/http/createTodo.handler
+  CreateMessage:
+    handler: src/lambda/http/createMessage.handler
     events:
       - http:
           method: post
-          path: todos
+          path: messages
           cors: true
           authorizer: Auth
           request:
             schemas:
-              application/json: ${file(models/create-todo-model.json)}
+              application/json: ${file(models/create-message-model.json)}
     iamRoleStatements:
       - Effect: Allow
         Action:
           - dynamodb:PutItem
-        Resource: !GetAtt TodosTable.Arn
+        Resource: !GetAtt MessagesTable.Arn
 
   # TODO: Configure this function
   # Provide property for setting up CORS, Authorizer, iamRoleStatements, and request schemas
-  UpdateTodo:
-    handler: src/lambda/http/updateTodo.handler
+  UpdateMessage:
+    handler: src/lambda/http/updateMessage.handler
     events:
       - http:
           method: patch
-          path: todos/{todoId}
+          path: messages/{messageId}
           cors: true
           authorizer: Auth
           request:
             schemas:
-              application/json: ${file(models/update-todo-model.json)}
+              application/json: ${file(models/update-message-model.json)}
     iamRoleStatements:
       - Effect: Allow
         Action:
           - dynamodb:UpdateItem
-        Resource: !GetAtt TodosTable.Arn
+        Resource: !GetAtt MessagesTable.Arn
 
   # TODO: Configure this function
   # Provide property for setting up CORS, Authorizer, iamRoleStatements
-  DeleteTodo:
-    handler: src/lambda/http/deleteTodo.handler
+  DeleteMessage:
+    handler: src/lambda/http/deleteMessage.handler
     events:
       - http:
           method: delete
-          path: todos/{todoId}
+          path: messages/{messageId}
           cors: true
           authorizer: Auth
     iamRoleStatements:
       - Effect: Allow
         Action:
           - s3:DeleteObject
-        Resource: arn:aws:s3:::${self:provider.environment.ATTACHMENT_S3_BUCKET}/*
+        Resource: arn:aws:s3:::${self:provider.environment.MESSAGES_S3_BUCKET}/*
       - Effect: Allow
         Action:
           - dynamodb:DeleteItem
-        Resource: !GetAtt TodosTable.Arn
+        Resource: !GetAtt MessagesTable.Arn
 
   # TODO: Configure this function
   # Provide property for setting up CORS, Authorizer, iamRoleStatements
@@ -135,7 +135,7 @@ functions:
     events:
       - http:
           method: post
-          path: todos/{todoId}/attachment
+          path: messages/{messageId}/attachment
           cors: true
           authorizer: Auth
     iamRoleStatements:
@@ -143,13 +143,13 @@ functions:
         Action:
           - s3:PutObject
           - s3:GetObject
-        Resource: arn:aws:s3:::${self:provider.environment.ATTACHMENT_S3_BUCKET}/*
+        Resource: arn:aws:s3:::${self:provider.environment.MESSAGES_S3_BUCKET}/*
       - Effect: Allow
         Action:
           - dynamodb:GetItem
           - dynamodb:PutItem
           - dynamodb:UpdateItem
-        Resource: !GetAtt TodosTable.Arn
+        Resource: !GetAtt MessagesTable.Arn
 
 resources:
   Resources:
@@ -168,25 +168,25 @@ resources:
           Ref: ApiGatewayRestApi
     
     # TODO: Create a DynamoDB table with local secondary index and a composite key
-    TodosTable:
+    MessagesTable:
       Type: AWS::DynamoDB::Table
       Properties:
         AttributeDefinitions:
           - AttributeName: userId
             AttributeType: S
-          - AttributeName: todoId
+          - AttributeName: messageId
             AttributeType: S
           - AttributeName: createdAt
             AttributeType: S
         KeySchema:
           - AttributeName: userId
             KeyType: HASH
-          - AttributeName: todoId
+          - AttributeName: messageId
             KeyType: RANGE
         BillingMode: PAY_PER_REQUEST
-        TableName: ${self:provider.environment.TODOS_TABLE}
+        TableName: ${self:provider.environment.MESSAGES_TABLE}
         LocalSecondaryIndexes:
-          - IndexName: ${self:provider.environment.TODOS_CREATED_AT_INDEX}
+          - IndexName: ${self:provider.environment.MESSAGES_CREATED_AT_INDEX}
             KeySchema:
               - AttributeName: userId
                 KeyType: HASH
@@ -197,10 +197,10 @@ resources:
 
     # TODO: Complete the bucket properties below. 
     # Do not forget to add the CorsConfiguration propoerty
-    AttachmentsBucket:
+    MessagesBucket:
       Type: AWS::S3::Bucket
       Properties:
-        BucketName: ${self:provider.environment.ATTACHMENT_S3_BUCKET}
+        BucketName: ${self:provider.environment.MESSAGES_S3_BUCKET}
         CorsConfiguration:
           CorsRules:
             -
@@ -217,17 +217,17 @@ resources:
               MaxAge: 3000
 
     # TODO: Complete the policy below and attach it to the bucket defined above
-    # For cross referencing the name of the bucket, use "!Ref AttachmentsBucket"
+    # For cross referencing the name of the bucket, use "!Ref MessagesBucket"
     BucketPolicy:
       Type: AWS::S3::BucketPolicy
       Properties:
         PolicyDocument:
-          Id: TodoBucketPolicy
+          Id: MessageBucketPolicy
           Version: "2012-10-17"
           Statement:
             - Sid: PublicReadForGetBucketObjects
               Effect: Allow
               Principal: '*'
               Action: 's3:GetObject'
-              Resource: 'arn:aws:s3:::${self:provider.environment.ATTACHMENT_S3_BUCKET}/*'
-        Bucket: !Ref AttachmentsBucket
+              Resource: 'arn:aws:s3:::${self:provider.environment.MESSAGES_S3_BUCKET}/*'
+        Bucket: !Ref MessagesBucket
