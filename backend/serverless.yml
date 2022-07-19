@@ -24,6 +24,7 @@ provider:
   # ${self:provider.environment.MESSAGES_S3_BUCKET}
   environment:
     MESSAGES_TABLE: Messages-${self:provider.stage}
+    CONNECTIONS_TABLE: Connections-${self:provider.stage}
     MESSAGES_CREATED_AT_INDEX: CreatedAtIndex
     MESSAGES_S3_BUCKET: serverless-lpp-cap-messages-${self:provider.stage}
     SIGNED_URL_EXPIRATION: 300
@@ -40,6 +41,16 @@ provider:
             - xray:PutTelemetryRecords
             - xray:PutTraceSegments
           Resource: "*"
+
+
+custom:
+  topicName: MessagesTopic-${self:provider.stage}
+  documentation:
+    api:
+      info:
+        version: v1.0.0
+        title: Udagram API
+        description: Serverless application for message sharing
 
 functions:
 
@@ -151,6 +162,61 @@ functions:
           - dynamodb:UpdateItem
         Resource: !GetAtt MessagesTable.Arn
 
+  SendUploadNotifications:
+    environment:
+      STAGE: ${self:provider.stage}
+      API_ID:
+        Ref: WebsocketsApi
+    handler: src/dataLayer/sendNotifications.handler
+    events:
+      - sns:
+          arn:
+            Fn::Join:
+              - ':'
+              - - arn:aws:sns
+                - Ref: AWS::Region
+                - Ref: AWS::AccountId
+                - ${self:custom.topicName}
+          topicName: ${self:custom.topicName}
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+          - dynamodb:Scan
+          - dynamodb:DeleteItem
+          - dynamodb:PutItem 
+        Resource: arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.CONNECTIONS_TABLE}
+      - Effect: Allow
+        Action:
+          - execute-api:ManageConnections
+        Resource: arn:aws:execute-api:us-east-1
+  
+  ConnectHandler:
+    handler: src/lambda/websocket/connect.handler
+    events:
+      - websocket:
+          route: $connect
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+          - dynamodb:Scan
+          - dynamodb:PutItem 
+        Resource: arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.CONNECTIONS_TABLE}
+
+  DisconnectHandler:
+    handler: src/lambda/websocket/disconnect.handler
+    events:
+      - websocket:
+          route: $disconnect
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+          - dynamodb:Scan
+          - dynamodb:DeleteItem
+        Resource: arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.CONNECTIONS_TABLE}
+
 resources:
   Resources:
     # Add necessary AWS resources. You will need at least the following AWS resources
@@ -195,12 +261,30 @@ resources:
             Projection:
               ProjectionType: ALL
 
+    ConnectionsDynamoDBTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: id
+            AttributeType: S
+        KeySchema:
+          -
+            AttributeName: id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+        TableName: ${self:provider.environment.CONNECTIONS_TABLE}
+
     # TODO: Complete the bucket properties below. 
     # Do not forget to add the CorsConfiguration propoerty
     MessagesBucket:
       Type: AWS::S3::Bucket
       Properties:
         BucketName: ${self:provider.environment.MESSAGES_S3_BUCKET}
+        NotificationConfiguration:
+          TopicConfigurations:
+            - Event: s3:ObjectCreated:Put
+              Topic: !Ref MessagesTopic
         CorsConfiguration:
           CorsRules:
             -
@@ -231,3 +315,27 @@ resources:
               Action: 's3:GetObject'
               Resource: 'arn:aws:s3:::${self:provider.environment.MESSAGES_S3_BUCKET}/*'
         Bucket: !Ref MessagesBucket
+
+    SNSTopicPolicy:
+      Type: AWS::SNS::TopicPolicy
+      Properties:
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                AWS: "*"
+              Action: sns:Publish
+              Resource:
+                !Ref MessagesTopic
+              Condition:
+                ArnLike:
+                  AWS:SourceArn: arn:aws:s3:::${self:provider.environment.MESSAGES_S3_BUCKET}
+        Topics:
+          - !Ref MessagesTopic
+
+    MessagesTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        DisplayName: Message bucket topic
+        TopicName: ${self:custom.topicName}
