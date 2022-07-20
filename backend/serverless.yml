@@ -92,7 +92,7 @@ functions:
           cors: true
           authorizer: Auth
           request:
-            schemas:
+            schema:
               application/json: ${file(models/create-message-model.json)}
     iamRoleStatements:
       - Effect: Allow
@@ -111,7 +111,7 @@ functions:
           cors: true
           authorizer: Auth
           request:
-            schemas:
+            schema:
               application/json: ${file(models/update-message-model.json)}
     iamRoleStatements:
       - Effect: Allow
