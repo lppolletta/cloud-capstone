@@ -46,7 +46,7 @@ export class Messages extends React.PureComponent<MessagesProps, MessagesState> 
 
   onMessageCreate = async (event: React.ChangeEvent<HTMLButtonElement>) => {
     try {
-      const dueDate = this.calculateDueDate()
+      const dueDate = this.calculateDate()
       const newMessage = await createMessage(this.props.auth.getIdToken(), {
         name: this.state.newMessageName,
         dueDate
@@ -127,7 +127,7 @@ export class Messages extends React.PureComponent<MessagesProps, MessagesState> 
             }}
             fluid
             actionPosition="left"
-            placeholder="I'm good..."
+            placeholder="I'm good... or I need help..."
             onChange={this.handleNameChange}
           />
         </Grid.Column>
@@ -206,10 +206,10 @@ export class Messages extends React.PureComponent<MessagesProps, MessagesState> 
     )
   }
 
-  calculateDueDate(): string {
-    const date = new Date()
-    date.setDate(date.getDate() + 7)
-
-    return dateFormat(date, 'yyyy-mm-dd') as string
+  calculateDate(): string {
+    let today = new Date();
+    let hours = (today.getHours() < 10 ? '0' : '') + today.getHours();
+    let minutes = (today.getMinutes() < 10 ? '0' : '') + today.getMinutes();
+    return hours + ':' + minutes + ' ' + dateFormat(today, 'mm-dd-yyyy') as string;
   }
 }
