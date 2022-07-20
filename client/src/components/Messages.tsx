@@ -104,7 +104,7 @@ export class Messages extends React.PureComponent<MessagesProps, MessagesState> 
   render() {
     return (
       <div>
-        <Header as="h1">MESSAGES</Header>
+        <Header as="h1">Check-Ins</Header>
 
         {this.renderCreateMessageInput()}
 
@@ -122,12 +122,12 @@ export class Messages extends React.PureComponent<MessagesProps, MessagesState> 
               color: 'green',
               labelPosition: 'left',
               icon: 'add',
-              content: 'New Message',
+              content: 'New Check-In',
               onClick: this.onMessageCreate
             }}
             fluid
             actionPosition="left"
-            placeholder="To change the world..."
+            placeholder="I'm good..."
             onChange={this.handleNameChange}
           />
         </Grid.Column>
@@ -162,13 +162,14 @@ export class Messages extends React.PureComponent<MessagesProps, MessagesState> 
         {this.state.messages.map((message, pos) => {
           return (
             <Grid.Row key={message.messageId}>
-              <Grid.Column width={1} verticalAlign="middle">
+              <Grid.Column width={5} verticalAlign="middle">
                 <Checkbox
                   onChange={() => this.onMessageCheck(pos)}
                   checked={message.done}
                 />
+                <label htmlFor="checkbox"> &nbsp; <b> Select 'pencil' to upload image file to Check-In </b> </label>
               </Grid.Column>
-              <Grid.Column width={10} verticalAlign="middle">
+              <Grid.Column width={5} verticalAlign="middle">
                 {message.name}
               </Grid.Column>
               <Grid.Column width={3} floated="right">
